@@ -1,0 +1,17 @@
+name: Private Server Release
+
+on:
+  push:
+    tags:
+      - "*-private*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: ${{ github.ref_name }}

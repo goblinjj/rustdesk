@@ -1,0 +1,28 @@
+name: Apply private server defaults
+description: >
+  Rewrites the default rendezvous server and public key in the hbb_common
+  submodule. They are compile-time constants there, and hbb_common is shared
+  with upstream, so they are patched at build time rather than forked.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PRIVATE_SERVER: goblin.top
+        PRIVATE_KEY: 4x51wO3OaK9fq3M5rmBZ+cDdecOK+Xe5z6DQztBy2Ys=
+      run: |
+        set -euo pipefail
+        f=libs/hbb_common/src/config.rs
+        sed -i.bak \
+          -e "s|^pub const RENDEZVOUS_SERVERS: .*|pub const RENDEZVOUS_SERVERS: \&[\&str] = \&[\"${PRIVATE_SERVER}\"];|" \
+          -e "s|^pub const RS_PUB_KEY: .*|pub const RS_PUB_KEY: \&str = \"${PRIVATE_KEY}\";|" \
+          -e 's|let serial_obsolute = CONFIG2.read().unwrap().serial > SERIAL;|let serial_obsolute = false;|' \
+          "$f"
+        rm -f "$f.bak"
+        # Fail the build rather than silently shipping a client that still
+        # points at the official servers if upstream reshapes these lines.
+        grep -qF "RENDEZVOUS_SERVERS: &[&str] = &[\"${PRIVATE_SERVER}\"];" "$f"
+        grep -qF "RS_PUB_KEY: &str = \"${PRIVATE_KEY}\";" "$f"
+        grep -qF 'let serial_obsolute = false;' "$f"
+        ! grep -qE 'rs-ny\.rustdesk\.com|OeVuKk5nlHiXp' "$f"
+        echo "Default server set to ${PRIVATE_SERVER}"
